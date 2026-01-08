@@ -157,10 +157,12 @@ class MRTASolver:
 
         tot_solve_time = sum([sum(batch_t) for batch_t in times])
         results = [[r.name for r in batch_r] for batch_r in results]
+
         print(f'ACTIONS: {actions}')
         print(f'RESULTS: {results}')
         print(f'SOLVE_TIMES: {times}')
         print(f'TOTAL_SOLVE_TIME: {tot_solve_time}')
+        sol_table = self.format_solution_table(sol, tasks_stream)
 
     def debug_print(self, s):
         if self.debug: print(s)
@@ -467,7 +469,48 @@ class MRTASolver:
 
         self.num_actions += num_tasks * 2
         return num_assigned_dps
+    
+    def format_solution_table(self, sol, tasks_stream):  
+        """  
+        Formatea la solución del solver en una tabla legible.  
+        
+        Args:  
+            sol: Diccionario de solución devuelto por extract_model()  
+            tasks_stream: Stream de tareas usado para generar la solución  
+        """  
+        # Calcular duraciones para cada tarea  
+        task_durations = []  
+        task_info = []  
+        
+        for batch_idx, (tasks, _) in enumerate(tasks_stream):  
+            for task_idx, task in enumerate(tasks):  
+                pickup_time = sol['ts'][batch_idx][task_idx]  
+                dropoff_time = sol['td'][batch_idx][task_idx]  
+                agent_id = sol['t2a'][batch_idx][task_idx]  
+                duration = dropoff_time - pickup_time  
                 
+                task_info.append({  
+                    'task_id': f"T{batch_idx}-{task_idx}",  
+                    'origin': task.start,  
+                    'destination': task.end,  
+                    'agent': f"Agente {agent_id + 1}",  
+                    'pickup': pickup_time,  
+                    'dropoff': dropoff_time,  
+                    'duration': duration  
+                })  
+        
+        # Crear tabla formateada  
+        print("┌───────────────────────┬─────────────┬─────────┬───────────┬──────────┐")  
+        print("│ Tarea                 │ Agente      │ Pickup  │ Dropoff   │ Duración │")  
+        print("├───────────────────────┼─────────────┼─────────┼───────────┼──────────┤")  
+        
+        for task in task_info:  
+            task_str = f"{task['task_id']} [{task['origin']}, {task['destination']}]"  
+            print(f"│ {task_str:<21} │ {task['agent']:<11} │ {task['pickup']:<7} │ {task['dropoff']:<9} │ {task['duration']:<8} │")  
+        
+        print("└───────────────────────┴─────────────┴─────────┴───────────┴──────────┘")  
+        
+        return task_info                
 
 
 if __name__ == '__main__':
